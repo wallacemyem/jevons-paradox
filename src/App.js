@@ -13,7 +13,7 @@ const App = () => {
   
   const width = 800;
   const height = 600;
-  const padding = 90;
+  const padding = 120;
 
   
   const regularCarColor = "#3B82F6"; 
@@ -28,14 +28,33 @@ const App = () => {
   const scaleY = (y) => height - ((y / maxCost) * (height - padding * 2) + padding);
 
   
-  const generateCurvePoints = (cost, maxDistance) => {
+  const generateCurvePoints = (cost, targetMiles) => {
     const points = [];
-    for (let miles = 50; miles <= maxDistance * 1.1; miles += 10) {
+    
+    const constant = cost * targetMiles;
+    
+    for (let miles = 50; miles <= maxMiles * 1.1; miles += 10) {
       
-      const y = (cost * maxDistance) / miles;
+      const y = constant / miles;
       points.push({ x: miles, y });
     }
-    return points;
+    
+    
+    const exactPoint = { x: targetMiles, y: cost };
+    
+    
+    let insertIndex = points.findIndex(p => p.x > targetMiles);
+    if (insertIndex === -1) insertIndex = points.length;
+    
+    
+    const filteredPoints = points.filter(p => 
+      Math.abs(p.x - targetMiles) > 5 || p.x === targetMiles
+    );
+    
+    
+    filteredPoints.splice(insertIndex, 0, exactPoint);
+    
+    return filteredPoints;
   };
 
   const regularCarPoints = generateCurvePoints(regularCarCost, originalMiles);
@@ -244,7 +263,6 @@ const App = () => {
             strokeWidth="2"
           />
 
-          {}
           <line
             x1={padding}
             y1={padding}
@@ -257,29 +275,38 @@ const App = () => {
           {}
           <text
             x={width / 2}
-            y={height - 10}
+            y={height - padding / 3}  
             textAnchor="middle"
-            className="text-sm"
+            className="text-sm font-medium"  
           >
             # of Miles Driven (miles/week)
           </text>
 
-          {}
           <text
-            x={15}
+            x={padding / 8}  
             y={height / 2}
             textAnchor="middle"
-            transform={`rotate(-90, 15, ${height / 2})`}
-            className="text-sm"
+            transform={`rotate(-90, ${padding / 9}, ${height / 2})`}  
+            className="text-sm font-medium"  
           >
             Cost of Driving {milesSegment} miles
           </text>
 
           {}
-          <path d={regularCarPath} stroke="#777" strokeWidth="2" fill="none" />
+          <path 
+            d={regularCarPath} 
+            stroke={regularCarColor} 
+            strokeWidth="2" 
+            fill="none" 
+          />
 
           {}
-          <path d={hybridCarPath} stroke="#4CAF50" strokeWidth="2" fill="none" />
+          <path 
+            d={hybridCarPath} 
+            stroke={hybridCarColor} 
+            strokeWidth="2" 
+            fill="none" 
+          />
 
           {}
           <line
@@ -292,7 +319,6 @@ const App = () => {
             strokeDasharray="4"
           />
 
-          {}
           <line
             x1={scaleX(newMiles)}
             y1={padding}
@@ -314,7 +340,6 @@ const App = () => {
             strokeDasharray="4"
           />
 
-          {}
           <line
             x1={padding}
             y1={scaleY(hybridCarCost)}
@@ -323,6 +348,21 @@ const App = () => {
             stroke="black"
             strokeWidth="1"
             strokeDasharray="4"
+          />
+
+          {}
+          <circle 
+            cx={scaleX(originalMiles)} 
+            cy={scaleY(regularCarCost)} 
+            r="4" 
+            fill={regularCarColor} 
+          />
+          
+          <circle 
+            cx={scaleX(newMiles)} 
+            cy={scaleY(hybridCarCost)} 
+            r="4" 
+            fill={hybridCarColor} 
           />
 
           {}
