@@ -358,7 +358,7 @@ const App = () => {
           {/* Replace the two separate paths with a single line connecting the intercept points */}
           <path 
             d={`M ${scaleX(originalMiles)} ${scaleY(regularCarCost)} 
-                Q ${(scaleX(originalMiles) + scaleX(newMiles)) / 2} ${Math.min(scaleY(regularCarCost), scaleY(hybridCarCost)) + 120} 
+                Q ${(scaleX(originalMiles) + scaleX(newMiles)) / 2} ${Math.min(scaleY(regularCarCost), scaleY(hybridCarCost)) + 140} 
                 ${scaleX(newMiles)} ${scaleY(hybridCarCost)}`} 
             stroke="#6366F1" 
             strokeWidth="2" 
