@@ -33,7 +33,7 @@ const App = () => {
     
     const constant = cost * targetMiles;
     
-    for (let miles = 50; miles <= maxMiles * 1.1; miles += 10) {
+    for (let miles = 50; miles <= maxMiles * 1.7; miles += 10) {
       
       const y = constant / miles;
       points.push({ x: miles, y });
@@ -53,6 +53,8 @@ const App = () => {
     
     
     filteredPoints.splice(insertIndex, 0, exactPoint);
+
+    console.log(filteredPoints);
     
     return filteredPoints;
   };
@@ -293,20 +295,22 @@ const App = () => {
           </text>
 
           {}
+          {/* Comment out or remove these two paths if you only want the single line */}
+          {/* 
           <path 
             d={regularCarPath} 
             stroke={regularCarColor} 
             strokeWidth="2" 
             fill="none" 
           />
-
-          {}
+          
           <path 
             d={hybridCarPath} 
             stroke={hybridCarColor} 
             strokeWidth="2" 
             fill="none" 
           />
+          */}
 
           {}
           <line
@@ -351,6 +355,17 @@ const App = () => {
           />
 
           {}
+          {/* Replace the two separate paths with a single line connecting the intercept points */}
+          <path 
+            d={`M ${scaleX(originalMiles)} ${scaleY(regularCarCost)} 
+                Q ${(scaleX(originalMiles) + scaleX(newMiles)) / 2} ${Math.min(scaleY(regularCarCost), scaleY(hybridCarCost)) + 120} 
+                ${scaleX(newMiles)} ${scaleY(hybridCarCost)}`} 
+            stroke="#6366F1" 
+            strokeWidth="2" 
+            fill="none" 
+          />
+
+          {/* Keep the circles at the intercept points */}
           <circle 
             cx={scaleX(originalMiles)} 
             cy={scaleY(regularCarCost)} 
@@ -448,7 +463,7 @@ const App = () => {
             textAnchor="end"
             className="text-xs"
           >
-            (regular car)
+            (cost curve at ${regularCarCost})
           </text>
           <text
             x={padding - 15}
@@ -456,26 +471,26 @@ const App = () => {
             textAnchor="end"
             className="text-xs"
           >
-            (hybrid car)
+            (cost curve at ${hybridCarCost})
           </text>
         </svg>
 
         <div className="mt-6 bg-white p-6 rounded-md shadow-sm w-full">
           <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-3">Summary</h3>
           <p className="text-gray-700 mb-2">
-            With a regular car costing <span className="font-semibold">${regularCarCost}</span> per {milesSegment} miles, a person drives <span className="font-semibold">{originalMiles}</span> miles weekly.
-            After switching to a hybrid car costing <span className="font-semibold">${hybridCarCost}</span> per {milesSegment} miles, they drive <span className="font-semibold">{newMiles}</span> miles weekly,
+            With a cost of <span className="font-semibold">${regularCarCost}</span> per {milesSegment} miles, a person drives <span className="font-semibold">{originalMiles}</span> miles weekly.
+            After switching to a more efficient option costing <span className="font-semibold">${hybridCarCost}</span> per {milesSegment} miles, they drive <span className="font-semibold">{newMiles}</span> miles weekly,
             an increase of <span className="font-semibold">{newMiles - originalMiles}</span> miles (<span className="font-semibold">{((newMiles - originalMiles) / originalMiles * 100).toFixed(1)}%</span>).
           </p>
 
           <div className="flex flex-col md:flex-row justify-between mt-4">
             <div className="bg-blue-50 p-3 rounded-md mb-4 md:mb-0 md:mr-4 flex-1">
-              <h4 className="font-medium text-blue-800">Regular Car Weekly Cost</h4>
+              <h4 className="font-medium text-blue-800">Original Cost Curve Weekly Total</h4>
               <p className="text-2xl font-bold text-blue-600">${(regularCarCost * originalMiles / milesSegment).toFixed(2)}</p>
             </div>
 
             <div className="bg-green-50 p-3 rounded-md flex-1">
-              <h4 className="font-medium text-green-800">Hybrid Car Weekly Cost</h4>
+              <h4 className="font-medium text-green-800">New Cost Curve Weekly Total</h4>
               <p className="text-2xl font-bold text-green-600">${(hybridCarCost * newMiles / milesSegment).toFixed(2)}</p>
             </div>
           </div>
