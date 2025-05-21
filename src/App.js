@@ -33,11 +33,11 @@ function App() {
     a = p1.cost / Math.pow(p1.miles, b);
   }
 
-  // Set curve range to match user input
-  const minMiles = Math.min(p1.miles, p2.miles);
-  const maxMiles = Math.max(p1.miles, p2.miles);
+  // Set curve range to match user input, with extra room for the curve
+  const minMiles = Math.max(0, Math.min(p1.miles, p2.miles) - 50);
+  const maxMiles = Math.max(p1.miles, p2.miles) + 50;
   const minCost = 0;
-  const maxCost = Math.max(p1.cost, p2.cost);
+  const maxCost = Math.max(p1.cost, p2.cost) + 2;
 
   const curveMiles = [];
   const curveCosts = [];
@@ -49,8 +49,6 @@ function App() {
 
   // console everything for debugging
   console.log("Costs:", costs);
-//   console.log("Curve:", curveMiles, curveCosts);
-//   console.log("a:", a, "b:", b);
   console.log("minMiles:", minMiles, "maxMiles:", maxMiles);
   console.log("minCost:", minCost, "maxCost:", maxCost);
 
@@ -66,9 +64,22 @@ function App() {
         borderWidth: 4,
         pointRadius: 0,
         tension: 0.4
+      },
+      {
+        label: "Intersections",
+        type: "scatter",
+        data: [
+          { x: costs[0].miles, y: costs[0].cost },
+          { x: costs[1].miles, y: costs[1].cost }
+        ],
+        backgroundColor: "#e11d48",
+        borderColor: "#be123c",
+        pointRadius: 10,
+        pointHoverRadius: 14,
+        showLine: false
       }
     ]
-  }), [curveMiles, curveCosts]);
+  }), [curveMiles, curveCosts, costs]);
 
   const chartOptions = React.useMemo(() => ({
     responsive: false,
@@ -76,46 +87,50 @@ function App() {
       legend: { display: false },
       annotation: {
         annotations: {
-          line1: {
-            type: "line",
+          // Add horizontal and vertical lines for the first point
+          line1Horizontal: {
+            type: 'line',
+            yMin: costs[0].cost,
+            yMax: costs[0].cost,
+            xMin: 0,
+            xMax: costs[0].miles,
+            borderColor: 'rgba(225, 29, 72, 0.6)',
+            borderWidth: 2,
+            borderDash: [5, 5],
+          },
+          line1Vertical: {
+            type: 'line',
             xMin: costs[0].miles,
             xMax: costs[0].miles,
             yMin: 0,
             yMax: costs[0].cost,
-            borderColor: "#0ea5e9", 
-            borderWidth: 5,         
-            borderDash: [8, 8]
+            borderColor: 'rgba(225, 29, 72, 0.6)',
+            borderWidth: 2,
+            borderDash: [5, 5],
           },
-          line2: {
-            type: "line",
-            xMin: minMiles,
-            xMax: costs[0].miles,
-            yMin: costs[0].cost,
-            yMax: costs[0].cost,
-            borderColor: "#0ea5e9",
-            borderWidth: 5,
-            borderDash: [8, 8]
+          
+          // Add horizontal and vertical lines for the second point
+          line2Horizontal: {
+            type: 'line',
+            yMin: costs[1].cost,
+            yMax: costs[1].cost,
+            xMin: 0,
+            xMax: costs[1].miles,
+            borderColor: 'rgba(225, 29, 72, 0.6)',
+            borderWidth: 2,
+            borderDash: [5, 5],
           },
-          line3: {
-            type: "line",
+          line2Vertical: {
+            type: 'line',
             xMin: costs[1].miles,
             xMax: costs[1].miles,
             yMin: 0,
             yMax: costs[1].cost,
-            borderColor: "#0ea5e9",
-            borderWidth: 5,
-            borderDash: [8, 8]
+            borderColor: 'rgba(225, 29, 72, 0.6)',
+            borderWidth: 2,
+            borderDash: [5, 5],
           },
-          line4: {
-            type: "line",
-            xMin: costs[0].cost,
-            xMax: costs[1].miles,
-            yMin: costs[1].cost,
-            yMax: costs[1].cost,
-            borderColor: "#0ea5e9",
-            borderWidth: 5,
-            borderDash: [8, 8]
-          },
+          
           labelArrow: {
             type: "label",
             xValue: (costs[0].miles + costs[1].miles) / 2,
@@ -132,6 +147,7 @@ function App() {
     },
     scales: {
       x: {
+        type: "linear", // <-- Add this line to make x-axis numeric
         title: { display: true, text: "# of Miles Driven (miles/week)", color: "#0f172a", font: { size: 16, weight: "bold" } },
         min: minMiles,
         max: maxMiles,
