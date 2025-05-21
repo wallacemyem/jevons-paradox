@@ -1,514 +1,225 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useState } from "react";
+import { Line } from "react-chartjs-2";
+import { Chart, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend } from "chart.js";
+import annotationPlugin from "chartjs-plugin-annotation";
+import { toPng, toJpeg } from "html-to-image";
+// import './index.css';
 
-const App = () => {
-  const svgRef = useRef(null);
-  const containerRef = useRef(null);
-  
-  const [regularCarCost, setRegularCarCost] = useState(4);
-  const [hybridCarCost, setHybridCarCost] = useState(2);
-  const [originalMiles, setOriginalMiles] = useState(250);
-  const [newMiles, setNewMiles] = useState(400);
-  const [milesSegment, setMilesSegment] = useState(25);
+Chart.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, annotationPlugin);
 
-  
-  const width = 800;
-  const height = 600;
-  const padding = 120;
+function App() {
+  const [costs, setCosts] = useState([
+    { label: "Regular car", cost: 4, miles: 250 },
+    { label: "Hybrid car", cost: 2, miles: 400 }
+  ]);
+  const chartRef = useRef(null);
 
-  
-  const regularCarColor = "#3B82F6"; 
-  const hybridCarColor = "#10B981"; 
-
-  
-  const maxCost = Math.max(regularCarCost, hybridCarCost) * 1.5;
-  const maxMiles = Math.max(originalMiles, newMiles) * 1.2;
-
-  
-  const scaleX = (x) => (x / maxMiles) * (width - padding * 2) + padding;
-  const scaleY = (y) => height - ((y / maxCost) * (height - padding * 2) + padding);
-
-  
-  const generateCurvePoints = (cost, targetMiles) => {
-    const points = [];
-    
-    const constant = cost * targetMiles;
-    
-    for (let miles = 50; miles <= maxMiles * 1.7; miles += 10) {
-      
-      const y = constant / miles;
-      points.push({ x: miles, y });
-    }
-    
-    
-    const exactPoint = { x: targetMiles, y: cost };
-    
-    
-    let insertIndex = points.findIndex(p => p.x > targetMiles);
-    if (insertIndex === -1) insertIndex = points.length;
-    
-    
-    const filteredPoints = points.filter(p => 
-      Math.abs(p.x - targetMiles) > 5 || p.x === targetMiles
-    );
-    
-    
-    filteredPoints.splice(insertIndex, 0, exactPoint);
-
-    console.log(filteredPoints);
-    
-    return filteredPoints;
+  const handleChange = (idx, field, value) => {
+    const updated = [...costs];
+    updated[idx][field] = field === "label" ? value : Number(value);
+    setCosts(updated);
   };
 
-  const regularCarPoints = generateCurvePoints(regularCarCost, originalMiles);
-  const hybridCarPoints = generateCurvePoints(hybridCarCost, newMiles);
+  // Dynamically fit a curve through the two points using a power-law: cost = a * miles^b
+  // Solve for a and b so that (m1, c1) and (m2, c2) are on the curve
+  const [p1, p2] = costs;
+  let a = 1, b = -0.5; // defaults
+  if (p1.miles > 0 && p2.miles > 0 && p1.miles !== p2.miles) {
+    const logm1 = Math.log(p1.miles);
+    const logm2 = Math.log(p2.miles);
+    const logc1 = Math.log(p1.cost);
+    const logc2 = Math.log(p2.cost);
+    b = (logc2 - logc1) / (logm2 - logm1);
+    a = p1.cost / Math.pow(p1.miles, b);
+  }
 
-  
-  const createPath = (points) => {
-    return points
-      .map((point, i) =>
-        (i === 0 ? 'M ' : 'L ') + scaleX(point.x) + ' ' + scaleY(point.y)
-      )
-      .join(' ');
-  };
+  // Set curve range to match user input
+  const minMiles = Math.min(p1.miles, p2.miles);
+  const maxMiles = Math.max(p1.miles, p2.miles);
+  const minCost = 0;
+  const maxCost = Math.max(p1.cost, p2.cost);
 
-  const regularCarPath = createPath(regularCarPoints);
-  const hybridCarPath = createPath(hybridCarPoints);
+  const curveMiles = [];
+  const curveCosts = [];
+  for (let m = minMiles; m <= maxMiles; m += 5) {
+    const c = a * Math.pow(m, b);
+    curveMiles.push(m);
+    curveCosts.push(c);
+  }
 
-  
-  const downloadSVG = () => {
-    if (!svgRef.current) return;
+  // console everything for debugging
+  console.log("Costs:", costs);
+//   console.log("Curve:", curveMiles, curveCosts);
+//   console.log("a:", a, "b:", b);
+  console.log("minMiles:", minMiles, "maxMiles:", maxMiles);
+  console.log("minCost:", minCost, "maxCost:", maxCost);
 
-    
-    const svgElement = svgRef.current;
-    const svgData = new XMLSerializer().serializeToString(svgElement);
+  // Memoize chartData and chartOptions so they update when costs change
+  const chartData = React.useMemo(() => ({
+    labels: curveMiles,
+    datasets: [
+      {
+        label: "Cost Curve",
+        data: curveCosts,
+        fill: false,
+        borderColor: "rgba(16,185,129,0.8)",
+        borderWidth: 4,
+        pointRadius: 0,
+        tension: 0.4
+      }
+    ]
+  }), [curveMiles, curveCosts]);
 
-    
-    const titleElement = `<title>Jevons Paradox - Hybrid Car</title>`;
-    const svgWithTitle = svgData.replace('<svg', `<svg xmlns="http://www.w3.org/2000/svg" ${titleElement}`);
-
-    const svgBlob = new Blob([svgWithTitle], { type: 'image/svg+xml;charset=utf-8' });
-    const svgUrl = URL.createObjectURL(svgBlob);
-
-    
-    const downloadLink = document.createElement('a');
-    downloadLink.href = svgUrl;
-    downloadLink.download = `jevons-paradox-${originalMiles}-${newMiles}.svg`;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-
-    
-    URL.revokeObjectURL(svgUrl);
-  };
-
-  
-  const downloadPNG = () => {
-    if (!svgRef.current) return;
-
-    const svgElement = svgRef.current;
-    const svgData = new XMLSerializer().serializeToString(svgElement);
-
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    
-    const scale = 2; 
-    canvas.width = width * scale;
-    canvas.height = height * scale;
-
-    
-    const img = new Image();
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
-
-    img.onload = () => {
-      
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      
-      ctx.scale(scale, scale);
-
-      
-      ctx.drawImage(img, 0, 0);
-
-      
-      let pngUrl;
-      try {
-        pngUrl = canvas.toDataURL('image/png');
-        const downloadLink = document.createElement('a');
-        downloadLink.href = pngUrl;
-        downloadLink.download = `jevons-paradox-${originalMiles}-${newMiles}.png`;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-      } catch (e) {
-        console.error("Error converting to PNG:", e);
-        alert("Could not convert to PNG. Trying JPEG instead...");
-
-        
-        try {
-          pngUrl = canvas.toDataURL('image/jpeg', 0.95);
-          const downloadLink = document.createElement('a');
-          downloadLink.href = pngUrl;
-          downloadLink.download = `jevons-paradox-${originalMiles}-${newMiles}.jpg`;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-        } catch (e2) {
-          console.error("Error converting to JPEG:", e2);
-          alert("Could not convert to image format. Please try SVG download instead.");
+  const chartOptions = React.useMemo(() => ({
+    responsive: false,
+    plugins: {
+      legend: { display: false },
+      annotation: {
+        annotations: {
+          line1: {
+            type: "line",
+            xMin: costs[0].miles,
+            xMax: costs[0].miles,
+            yMin: 0,
+            yMax: costs[0].cost,
+            borderColor: "#0ea5e9", 
+            borderWidth: 5,         
+            borderDash: [8, 8]
+          },
+          line2: {
+            type: "line",
+            xMin: minMiles,
+            xMax: costs[0].miles,
+            yMin: costs[0].cost,
+            yMax: costs[0].cost,
+            borderColor: "#0ea5e9",
+            borderWidth: 5,
+            borderDash: [8, 8]
+          },
+          line3: {
+            type: "line",
+            xMin: costs[1].miles,
+            xMax: costs[1].miles,
+            yMin: 0,
+            yMax: costs[1].cost,
+            borderColor: "#0ea5e9",
+            borderWidth: 5,
+            borderDash: [8, 8]
+          },
+          line4: {
+            type: "line",
+            xMin: costs[0].cost,
+            xMax: costs[1].miles,
+            yMin: costs[1].cost,
+            yMax: costs[1].cost,
+            borderColor: "#0ea5e9",
+            borderWidth: 5,
+            borderDash: [8, 8]
+          },
+          labelArrow: {
+            type: "label",
+            xValue: (costs[0].miles + costs[1].miles) / 2,
+            yValue: Math.min(costs[0].cost, costs[1].cost) - 0.5,
+            content: [`${costs[1].miles - costs[0].miles} miles more`],
+            color: "#0f172a",
+            font: { size: 16, weight: "bold" },
+            backgroundColor: "rgba(236, 253, 245, 0.9)",
+            borderRadius: 6,
+            padding: 8
+          }
         }
       }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: "# of Miles Driven (miles/week)", color: "#0f172a", font: { size: 16, weight: "bold" } },
+        min: minMiles,
+        max: maxMiles,
+        ticks: { stepSize: 50, color: "#334155", font: { size: 14 } }
+      },
+      y: {
+        title: { display: true, text: "Cost of Driving 25 miles", color: "#0f172a", font: { size: 16, weight: "bold" } },
+        min: minCost,
+        max: maxCost,
+        ticks: {
+          callback: (v) => `$${v}`,
+          color: "#334155",
+          font: { size: 14 }
+        }
+      }
+    }
+  }), [costs, minMiles, maxMiles, minCost, maxCost]);
 
-      
-      URL.revokeObjectURL(url);
-    };
-
-    img.src = url;
+  const downloadImage = (type) => {
+    if (!chartRef.current) return;
+    const fn = type === "jpeg" ? toJpeg : toPng;
+    fn(chartRef.current, { quality: 0.95 })
+      .then((dataUrl) => {
+        const link = document.createElement("a");
+        link.download = `jevons-paradox.${type}`;
+        link.href = dataUrl;
+        link.click();
+      });
   };
 
   return (
-    <div className="flex flex-col items-center bg-gray-50 p-6 rounded-lg shadow-md max-w-4xl mx-auto" ref={containerRef}>
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">Jevons Paradox: Hybrid Car</h2>
-
-      <div className="mb-6 flex space-x-4">
-        <button
-          onClick={downloadSVG}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-200 ease-in-out shadow-sm"
-        >
-          Download as SVG
-        </button>
-        <button
-          onClick={downloadPNG}
-          className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition duration-200 ease-in-out shadow-sm"
-        >
-          Download as PNG/JPEG
-        </button>
-      </div>
-
-      <div className="mb-6 w-full bg-white p-4 rounded-md shadow-sm">
-        <div className="flex flex-col md:flex-row md:flex-wrap gap-4 justify-center mb-4">
-          <div className="flex flex-col">
-            <label className="text-sm font-medium mb-1 text-gray-700">Regular Car Cost ($ per {milesSegment} miles)</label>
-            <input
-              type="number"
-              value={regularCarCost}
-              onChange={(e) => setRegularCarCost(Number(e.target.value))}
-              min="0.5"
-              step="0.5"
-              className="border rounded-md p-2 w-full focus:ring-2 focus:ring-blue-300 focus:border-blue-500 transition"
-            />
-          </div>
-
-          <div className="flex flex-col">
-            <label className="text-sm font-medium mb-1 text-gray-700">Hybrid Car Cost ($ per {milesSegment} miles)</label>
-            <input
-              type="number"
-              value={hybridCarCost}
-              onChange={(e) => setHybridCarCost(Number(e.target.value))}
-              min="0.5"
-              step="0.5"
-              className="border rounded-md p-2 w-full focus:ring-2 focus:ring-blue-300 focus:border-blue-500 transition"
-            />
-          </div>
-
-          <div className="flex flex-col">
-            <label className="text-sm font-medium mb-1 text-gray-700">Miles Segment</label>
-            <input
-              type="number"
-              value={milesSegment}
-              onChange={(e) => setMilesSegment(Number(e.target.value))}
-              min="1"
-              className="border rounded-md p-2 w-full focus:ring-2 focus:ring-blue-300 focus:border-blue-500 transition"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row gap-4 justify-center">
-          <div className="flex flex-col">
-            <label className="text-sm font-medium mb-1 text-gray-700">Original Miles per Week</label>
-            <input
-              type="number"
-              value={originalMiles}
-              onChange={(e) => setOriginalMiles(Number(e.target.value))}
-              min="50"
-              step="10"
-              className="border rounded-md p-2 w-full focus:ring-2 focus:ring-blue-300 focus:border-blue-500 transition"
-            />
-          </div>
-
-          <div className="flex flex-col">
-            <label className="text-sm font-medium mb-1 text-gray-700">New Miles per Week</label>
-            <input
-              type="number"
-              value={newMiles}
-              onChange={(e) => setNewMiles(Number(e.target.value))}
-              min="50"
-              step="10"
-              className="border rounded-md p-2 w-full focus:ring-2 focus:ring-blue-300 focus:border-blue-500 transition"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white p-12 rounded-md shadow-sm mb-6">
-        <svg ref={svgRef} width={width} height={height} className="border border-gray-200 rounded-md justify-center">
-          {}
-          <line
-            x1={padding}
-            y1={height - padding}
-            x2={width - padding}
-            y2={height - padding}
-            stroke="black"
-            strokeWidth="2"
-          />
-
-          <line
-            x1={padding}
-            y1={padding}
-            x2={padding}
-            y2={height - padding}
-            stroke="black"
-            strokeWidth="2"
-          />
-
-          {}
-          <text
-            x={width / 2}
-            y={height - padding / 3}  
-            textAnchor="middle"
-            className="text-sm font-medium"  
-          >
-            # of Miles Driven (miles/week)
-          </text>
-
-          <text
-            x={padding / 8}  
-            y={height / 2}
-            textAnchor="middle"
-            transform={`rotate(-90, ${padding / 9}, ${height / 2})`}  
-            className="text-sm font-medium"  
-          >
-            Cost of Driving {milesSegment} miles
-          </text>
-
-          {}
-          {/* Comment out or remove these two paths if you only want the single line */}
-          {/* 
-          <path 
-            d={regularCarPath} 
-            stroke={regularCarColor} 
-            strokeWidth="2" 
-            fill="none" 
-          />
-          
-          <path 
-            d={hybridCarPath} 
-            stroke={hybridCarColor} 
-            strokeWidth="2" 
-            fill="none" 
-          />
-          */}
-
-          {}
-          <line
-            x1={scaleX(originalMiles)}
-            y1={padding}
-            x2={scaleX(originalMiles)}
-            y2={height - padding}
-            stroke="black"
-            strokeWidth="1"
-            strokeDasharray="4"
-          />
-
-          <line
-            x1={scaleX(newMiles)}
-            y1={padding}
-            x2={scaleX(newMiles)}
-            y2={height - padding}
-            stroke="black"
-            strokeWidth="1"
-            strokeDasharray="4"
-          />
-
-          {}
-          <line
-            x1={padding}
-            y1={scaleY(regularCarCost)}
-            x2={scaleX(originalMiles)}
-            y2={scaleY(regularCarCost)}
-            stroke="black"
-            strokeWidth="1"
-            strokeDasharray="4"
-          />
-
-          <line
-            x1={padding}
-            y1={scaleY(hybridCarCost)}
-            x2={scaleX(newMiles)}
-            y2={scaleY(hybridCarCost)}
-            stroke="black"
-            strokeWidth="1"
-            strokeDasharray="4"
-          />
-
-          {}
-          {/* Replace the two separate paths with a single line connecting the intercept points */}
-          <path 
-            d={`M ${scaleX(originalMiles)} ${scaleY(regularCarCost)} 
-                Q ${(scaleX(originalMiles) + scaleX(newMiles)) / 2} ${Math.min(scaleY(regularCarCost), scaleY(hybridCarCost)) + 140} 
-                ${scaleX(newMiles)} ${scaleY(hybridCarCost)}`} 
-            stroke="#6366F1" 
-            strokeWidth="2" 
-            fill="none" 
-          />
-
-          {/* Keep the circles at the intercept points */}
-          <circle 
-            cx={scaleX(originalMiles)} 
-            cy={scaleY(regularCarCost)} 
-            r="4" 
-            fill={regularCarColor} 
-          />
-          
-          <circle 
-            cx={scaleX(newMiles)} 
-            cy={scaleY(hybridCarCost)} 
-            r="4" 
-            fill={hybridCarColor} 
-          />
-
-          {}
-          <line
-            x1={scaleX(originalMiles) + 10}
-            y1={height - padding + 25}
-            x2={scaleX(newMiles) - 10}
-            y2={height - padding + 25}
-            stroke="black"
-            strokeWidth="1"
-          />
-          <polygon
-            points={`${scaleX(newMiles) - 10},${height - padding + 20} ${scaleX(newMiles) - 10},${height - padding + 30} ${scaleX(newMiles)},${height - padding + 25}`}
-            fill="black"
-          />
-          <text
-            x={(scaleX(originalMiles) + scaleX(newMiles)) / 2}
-            y={height - padding + 40}
-            textAnchor="middle"
-            className="text-xs"
-          >
-            {newMiles - originalMiles} miles more
-          </text>
-
-          {}
-          <text
-            x={scaleX(originalMiles)}
-            y={height - padding + 15}
-            textAnchor="middle"
-            className="text-xs"
-          >
-            {originalMiles}
-          </text>
-          <text
-            x={scaleX(newMiles)}
-            y={height - padding + 15}
-            textAnchor="middle"
-            className="text-xs"
-          >
-            {newMiles}
-          </text>
-          <text
-            x={padding - 10}
-            y={scaleY(regularCarCost)}
-            textAnchor="end"
-            dominantBaseline="middle"
-            className="text-xs"
-          >
-            ${regularCarCost}
-          </text>
-          <text
-            x={padding - 10}
-            y={scaleY(hybridCarCost)}
-            textAnchor="end"
-            dominantBaseline="middle"
-            className="text-xs"
-          >
-            ${hybridCarCost}
-          </text>
-
-          {}
-          <text
-            x={scaleX(originalMiles)}
-            y={height - 5}
-            textAnchor="middle"
-            className="text-xs"
-          >
-            (original driving habit)
-          </text>
-          <text
-            x={scaleX(newMiles)}
-            y={height - 5}
-            textAnchor="middle"
-            className="text-xs"
-          >
-            (new driving habit)
-          </text>
-
-          {}
-          <text
-            x={padding - 15}
-            y={scaleY(regularCarCost) + 15}
-            textAnchor="end"
-            className="text-xs"
-          >
-            (cost curve at ${regularCarCost})
-          </text>
-          <text
-            x={padding - 15}
-            y={scaleY(hybridCarCost) + 15}
-            textAnchor="end"
-            className="text-xs"
-          >
-            (cost curve at ${hybridCarCost})
-          </text>
-        </svg>
-
-        <div className="mt-6 bg-white p-6 rounded-md shadow-sm w-full">
-          <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-3">Summary</h3>
-          <p className="text-gray-700 mb-2">
-            With a cost of <span className="font-semibold">${regularCarCost}</span> per {milesSegment} miles, a person drives <span className="font-semibold">{originalMiles}</span> miles weekly.
-            After switching to a more efficient option costing <span className="font-semibold">${hybridCarCost}</span> per {milesSegment} miles, they drive <span className="font-semibold">{newMiles}</span> miles weekly,
-            an increase of <span className="font-semibold">{newMiles - originalMiles}</span> miles (<span className="font-semibold">{((newMiles - originalMiles) / originalMiles * 100).toFixed(1)}%</span>).
-          </p>
-
-          <div className="flex flex-col md:flex-row justify-between mt-4">
-            <div className="bg-blue-50 p-3 rounded-md mb-4 md:mb-0 md:mr-4 flex-1">
-              <h4 className="font-medium text-blue-800">Original Cost Curve Weekly Total</h4>
-              <p className="text-2xl font-bold text-blue-600">${(regularCarCost * originalMiles / milesSegment).toFixed(2)}</p>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex flex-col items-center py-10">
+      <div className="bg-white shadow-xl rounded-xl p-8 w-full max-w-3xl">
+        <h2 className="text-3xl font-bold text-emerald-700 mb-2 text-center">Jevons Paradox</h2>
+        <p className="text-lg text-gray-600 mb-8 text-center">Hybrid Car Example</p>
+        <div className="flex flex-col md:flex-row justify-center gap-6 mb-8">
+          {costs.map((point, idx) => (
+            <div key={idx} className="flex flex-col bg-emerald-50 rounded-lg p-4 shadow-sm">
+              <label className="text-sm font-semibold text-emerald-700 mb-1">
+                Label
+                <input
+                  type="text"
+                  value={point.label}
+                  onChange={e => handleChange(idx, "label", e.target.value)}
+                  className="block w-full mt-1 px-2 py-1 border border-emerald-200 rounded focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+              </label>
+              <label className="text-sm font-semibold text-emerald-700 mb-1 mt-2">
+                Cost ($)
+                <input
+                  type="number"
+                  value={point.cost}
+                  onChange={e => handleChange(idx, "cost", e.target.value)}
+                  className="block w-full mt-1 px-2 py-1 border border-emerald-200 rounded focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+              </label>
+              <label className="text-sm font-semibold text-emerald-700 mt-2">
+                Miles
+                <input
+                  type="number"
+                  value={point.miles}
+                  onChange={e => handleChange(idx, "miles", e.target.value)}
+                  className="block w-full mt-1 px-2 py-1 border border-emerald-200 rounded focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+              </label>
             </div>
-
-            <div className="bg-green-50 p-3 rounded-md flex-1">
-              <h4 className="font-medium text-green-800">New Cost Curve Weekly Total</h4>
-              <p className="text-2xl font-bold text-green-600">${(hybridCarCost * newMiles / milesSegment).toFixed(2)}</p>
-            </div>
-          </div>
-
-          <div className="mt-4 p-3 rounded-md border-l-4 border-yellow-400 bg-yellow-50">
-            <p className="text-gray-800">
-              {hybridCarCost * newMiles / milesSegment < regularCarCost * originalMiles / milesSegment
-                ? <span>Despite driving more miles, there's still a net saving of <span className="font-semibold text-green-600">${(regularCarCost * originalMiles / milesSegment - hybridCarCost * newMiles / milesSegment).toFixed(2)}</span> per week.</span>
-                : hybridCarCost * newMiles / milesSegment > regularCarCost * originalMiles / milesSegment
-                  ? <span>The increased driving has actually increased total spending by <span className="font-semibold text-red-600">${(hybridCarCost * newMiles / milesSegment - regularCarCost * originalMiles / milesSegment).toFixed(2)}</span> per week.</span>
-                  : <span>The increased driving has exactly offset the efficiency gains, resulting in the same total spending.</span>
-              }
-            </p>
-          </div>
+          ))}
+        </div>
+        <div ref={chartRef} className="flex justify-center items-center bg-white rounded-lg shadow-md p-4 mb-8" style={{ width: 600, height: 400 }}>
+          <Line data={chartData} options={chartOptions} width={600} height={400} />
+        </div>
+        <div className="flex justify-center gap-4">
+          <button
+            onClick={() => downloadImage("png")}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded shadow transition"
+          >
+            Download as PNG
+          </button>
+          <button
+            onClick={() => downloadImage("jpeg")}
+            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-4 rounded shadow transition"
+          >
+            Download as JPEG
+          </button>
         </div>
       </div>
     </div>
   );
-};
+}
 
 export default App;
