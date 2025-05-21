@@ -39,47 +39,44 @@ function App() {
   const minCost = 0;
   const maxCost = Math.max(p1.cost, p2.cost) + 2;
 
-  const curveMiles = [];
-  const curveCosts = [];
-  for (let m = minMiles; m <= maxMiles; m += 5) {
-    const c = a * Math.pow(m, b);
-    curveMiles.push(m);
-    curveCosts.push(c);
-  }
-
-  // console everything for debugging
-  console.log("Costs:", costs);
-  console.log("minMiles:", minMiles, "maxMiles:", maxMiles);
-  console.log("minCost:", minCost, "maxCost:", maxCost);
-
   // Memoize chartData and chartOptions so they update when costs change
-  const chartData = React.useMemo(() => ({
-    labels: curveMiles,
-    datasets: [
-      {
-        label: "Cost Curve",
-        data: curveCosts,
-        fill: false,
-        borderColor: "rgba(16,185,129,0.8)",
-        borderWidth: 4,
-        pointRadius: 0,
-        tension: 0.4
-      },
-      {
-        label: "Intersections",
-        type: "scatter",
-        data: [
-          { x: costs[0].miles, y: costs[0].cost },
-          { x: costs[1].miles, y: costs[1].cost }
-        ],
-        backgroundColor: "#e11d48",
-        borderColor: "#be123c",
-        pointRadius: 10,
-        pointHoverRadius: 14,
-        showLine: false
-      }
-    ]
-  }), [curveMiles, curveCosts, costs]);
+  const chartData = React.useMemo(() => {
+    // Calculate curveMiles and curveCosts inside useMemo
+    const curveMiles = [];
+    const curveCosts = [];
+    for (let m = minMiles; m <= maxMiles; m += 5) {
+      const c = a * Math.pow(m, b);
+      curveMiles.push(m);
+      curveCosts.push(c);
+    }
+    return {
+      labels: curveMiles,
+      datasets: [
+        {
+          label: "Cost Curve",
+          data: curveCosts,
+          fill: false,
+          borderColor: "rgba(16,185,129,0.8)",
+          borderWidth: 4,
+          pointRadius: 0,
+          tension: 0.4
+        },
+        {
+          label: "Intersections",
+          type: "scatter",
+          data: [
+            { x: costs[0].miles, y: costs[0].cost },
+            { x: costs[1].miles, y: costs[1].cost }
+          ],
+          backgroundColor: "#e11d48",
+          borderColor: "#be123c",
+          pointRadius: 10,
+          pointHoverRadius: 14,
+          showLine: false
+        }
+      ]
+    };
+  }, [a, b, minMiles, maxMiles, costs]);
 
   const chartOptions = React.useMemo(() => ({
     responsive: false,
@@ -182,7 +179,7 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex flex-col items-center py-10">
       <div className="bg-white shadow-xl rounded-xl p-8 w-full max-w-3xl">
         <h2 className="text-3xl font-bold text-emerald-700 mb-2 text-center">Jevons Paradox</h2>
-        <p className="text-lg text-gray-600 mb-8 text-center">Hybrid Car Example</p>
+        <p className="text-lg text-gray-600 mb-8 text-center"></p>
         <div className="flex flex-col md:flex-row justify-center gap-6 mb-8">
           {costs.map((point, idx) => (
             <div key={idx} className="flex flex-col bg-emerald-50 rounded-lg p-4 shadow-sm">
