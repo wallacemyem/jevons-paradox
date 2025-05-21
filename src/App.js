@@ -3,7 +3,6 @@ import { Line } from "react-chartjs-2";
 import { Chart, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend } from "chart.js";
 import annotationPlugin from "chartjs-plugin-annotation";
 import { toPng, toJpeg } from "html-to-image";
-// import './index.css';
 
 Chart.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, annotationPlugin);
 
@@ -20,10 +19,9 @@ function App() {
     setCosts(updated);
   };
 
-  // Dynamically fit a curve through the two points using a power-law: cost = a * miles^b
-  // Solve for a and b so that (m1, c1) and (m2, c2) are on the curve
+  
   const [p1, p2] = costs;
-  let a = 1, b = -0.5; // defaults
+  let a = 1, b = -0.5; 
   if (p1.miles > 0 && p2.miles > 0 && p1.miles !== p2.miles) {
     const logm1 = Math.log(p1.miles);
     const logm2 = Math.log(p2.miles);
@@ -106,7 +104,6 @@ function App() {
             borderDash: [5, 5],
           },
           
-          // Add horizontal and vertical lines for the second point
           line2Horizontal: {
             type: 'line',
             yMin: costs[1].cost,
@@ -144,7 +141,7 @@ function App() {
     },
     scales: {
       x: {
-        type: "linear", // <-- Add this line to make x-axis numeric
+        type: "linear", 
         title: { display: true, text: "# of Miles Driven (miles/week)", color: "#0f172a", font: { size: 16, weight: "bold" } },
         min: minMiles,
         max: maxMiles,
