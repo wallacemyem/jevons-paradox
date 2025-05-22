@@ -1,10 +1,11 @@
 import React, { useRef, useState } from "react";
+import Chart from 'chart.js/auto';
 import { Line } from "react-chartjs-2";
-import { Chart, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, ScatterController } from "chart.js";
 import annotationPlugin from "chartjs-plugin-annotation";
 import { toPng, toJpeg } from "html-to-image";
 
-Chart.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, ScatterController, annotationPlugin);
+// Only register plugins, not controllers/elements/scales
+Chart.register(annotationPlugin);
 
 function App() {
   const [costs, setCosts] = useState([
@@ -58,23 +59,10 @@ function App() {
           borderWidth: 4,
           pointRadius: 0,
           tension: 0.4
-        },
-        {
-          label: "Intersections",
-          type: "scatter",
-          data: [
-            { x: costs[0].miles, y: costs[0].cost },
-            { x: costs[1].miles, y: costs[1].cost }
-          ],
-          backgroundColor: "#e11d48",
-          borderColor: "#be123c",
-          pointRadius: 10,
-          pointHoverRadius: 14,
-          showLine: false
         }
       ]
     };
-  }, [a, b, minMiles, maxMiles, costs]);
+  }, [a, b, minMiles, maxMiles]);
 
   const chartOptions = React.useMemo(() => ({
     responsive: false,
