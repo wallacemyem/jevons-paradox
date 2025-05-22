@@ -136,7 +136,7 @@ function App() {
         ticks: { stepSize: 50, color: "#334155", font: { size: 14 } }
       },
       y: {
-        title: { display: true, text: "Cost of Driving 25 miles", color: "#0f172a", font: { size: 16, weight: "bold" } },
+        title: { display: true, text: "Cost of Driving in miles", color: "#0f172a", font: { size: 16, weight: "bold" } },
         min: minCost,
         max: maxCost,
         ticks: {
