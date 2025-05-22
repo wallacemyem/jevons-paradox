@@ -1,10 +1,10 @@
 import React, { useRef, useState } from "react";
 import { Line } from "react-chartjs-2";
-import { Chart, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend } from "chart.js";
-import annotationPlugin from "chartjs-plugin-annotation";
+// import { Chart, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, ScatterController } from "chart.js";
+// import annotationPlugin from "chartjs-plugin-annotation";
 import { toPng, toJpeg } from "html-to-image";
 
-Chart.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, annotationPlugin);
+// Chart.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, ScatterController, annotationPlugin);
 
 function App() {
   const [costs, setCosts] = useState([
